@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { getTreeRepository, Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
 
 @Injectable()
 export class CategoriesService {
+  private categoryRepository2 = getTreeRepository(Category);
   constructor(
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
@@ -17,10 +18,23 @@ export class CategoriesService {
 
   async getDescendant(id: number) {
     const parentCategory = this.categoryRepository.findOne(id);
-    const trees = await this.categoryRepository.manager
-      .getTreeRepository(Category)
-      .findDescendantsTree(await parentCategory, { depth: 1 });
-    return trees;
+
+    // findTrees returns root categories with sub categories inside
+    const findTrees = await this.categoryRepository2.findTrees();
+
+    // findRoots return the root without child
+    const getRoot = await this.categoryRepository2.findRoots();
+
+    // findDescendantsTree return parent and all child of a given category
+    const allDescendantTree =
+      await this.categoryRepository2.findDescendantsTree(await parentCategory);
+
+    // findDescendants return child without parent
+    const childrenOnly = await this.categoryRepository2.findDescendants(
+      await parentCategory,
+    );
+
+    return findTrees;
   }
 
   findOne(id: number) {
